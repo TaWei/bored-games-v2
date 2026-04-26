@@ -53,9 +53,28 @@ export const ticTacToeEngine: GameEngine<
     };
   },
 
-  reduce(state: TicTacToeState, _event: TicTacToeEvent) {
-    // Stub — implemented in JER-50
-    return { ok: true, value: state };
+  reduce(state: TicTacToeState, event: TicTacToeEvent): Result<TicTacToeState, string> {
+    // Find the player's symbol
+    const player = state.players.find((p) => p.sessionId === event.playerId);
+    const symbol = player?.symbol ?? '?';
+
+    // Create new board with the piece placed
+    const newBoard = [...state.board];
+    newBoard[event.cell] = symbol;
+
+    // Toggle turn
+    const nextPlayer = state.players.find((p) => p.sessionId !== event.playerId);
+
+    return {
+      ok: true,
+      value: {
+        gameType: state.gameType,
+        players: state.players,
+        currentTurn: nextPlayer?.sessionId ?? null,
+        moveCount: state.moveCount + 1,
+        board: newBoard,
+      },
+    };
   },
 
   legalEvents(state: TicTacToeState, playerId: string): readonly TicTacToeEvent[] {

@@ -113,3 +113,85 @@ describe('TicTacToe legalEvents() — mid-game', () => {
     expect(cells.has(8)).toBe(false); // O
   });
 });
+
+// ─── JER-50: reduce() — valid moves ─────────────────────────
+
+describe('TicTacToe reduce()', () => {
+  const fresh = ticTacToeEngine.init({}, ['p1', 'p2']);
+
+  test('valid move places piece and advances turn', () => {
+    const result = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED',
+      cell: 4,
+      playerId: 'p1',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected ok');
+
+    const state = result.value;
+    expect(state.board[4]).toBe('X');
+    expect(state.currentTurn).toBe('p2');
+    expect(state.moveCount).toBe(1);
+  });
+
+  test('reduce returns new objects (immutable)', () => {
+    const result = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED',
+      cell: 0,
+      playerId: 'p1',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected ok');
+
+    const state = result.value;
+    expect(state).not.toBe(fresh);
+    expect(state.board).not.toBe(fresh.board);
+    expect(fresh.board[0]).toBe('');
+    expect(state.board[0]).toBe('X');
+  });
+
+  test('p2 can place after p1', () => {
+    const r1 = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p1',
+    });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) throw new Error('Expected ok');
+
+    const r2 = ticTacToeEngine.reduce(r1.value, {
+      type: 'PIECE_PLACED', cell: 8, playerId: 'p2',
+    });
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) throw new Error('Expected ok');
+
+    expect(r2.value.board[0]).toBe('X');
+    expect(r2.value.board[8]).toBe('O');
+    expect(r2.value.currentTurn).toBe('p1');
+    expect(r2.value.moveCount).toBe(2);
+  });
+
+  test('reduce with correct player (p1=X)', () => {
+    const r = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 6, playerId: 'p1',
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected ok');
+    expect(r.value.board[6]).toBe('X');
+  });
+
+  test('reduce with correct player (p2=O)', () => {
+    const r1 = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p1',
+    });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) throw new Error('Expected ok');
+
+    const r2 = ticTacToeEngine.reduce(r1.value, {
+      type: 'PIECE_PLACED', cell: 1, playerId: 'p2',
+    });
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) throw new Error('Expected ok');
+    expect(r2.value.board[1]).toBe('O');
+  });
+});
