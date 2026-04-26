@@ -107,6 +107,26 @@ The plugin architecture from v1 is preserved and strengthened. Adding a new game
 - **Why:** Low barrier to contribution. Clear boundaries enable parallel development.
 - **Contract:** The `GameEngine<S, E>` interface is the only contract. Everything else is implementation detail.
 
+### 11. Test-Driven Development
+
+We write tests **before** implementation. Every feature, bugfix, and game engine starts with a failing test. This is non-negotiable.
+
+- **Why:** Pure game engines and event sourcing make TDD natural — given an event log, the resulting state is deterministic and trivially assertable. TDD catches design flaws before they become code, ensures every code path has a reason to exist, and enables fearless refactoring.
+- **What we test:**
+  - **Game engines:** Given initial state + sequence of events → assert resulting state, legal moves, and game-end conditions. Event replay correctness (apply all events from scratch = current state).
+  - **Server routes:** HTTP status codes, response shapes, error cases.
+  - **WebSocket protocol:** Message serialization, reconnection event replay, invalid message rejection.
+  - **Integration:** End-to-end game flows (create room → join → play → end → leaderboard updated).
+- **Tooling:** `bun test` (native Bun test runner — fast, no config). Property-based testing for game engines (generate random legal move sequences, assert invariants hold). CI blocks merge if any test fails.
+- **Workflow:**
+  ```
+  1. Write a failing test (RED)      — define the behavior you want
+  2. Write minimal code to pass      — make it GREEN
+  3. Refactor with confidence        — tests guard against regression
+  4. Repeat
+  ```
+- **Test file convention:** Tests live alongside the code they test. `engine.ts` → `engine.test.ts`. Integration tests in `server/src/__tests__/` and `packages/shared/src/__tests__/`.
+
 ---
 
 ## Architecture
