@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: bored-games-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: bored-games-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bored_games
+      POSTGRES_PASSWORD: bored_games_dev
+      POSTGRES_DB: bored_games
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bored_games -d bored_games"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    name: bored_games_redis
+  postgres_data:
+    name: bored_games_postgres
