@@ -58,9 +58,17 @@ export const ticTacToeEngine: GameEngine<
     return { ok: true, value: state };
   },
 
-  legalEvents(_state: TicTacToeState, _playerId: string) {
-    // Stub — implemented in JER-48
-    return [];
+  legalEvents(state: TicTacToeState, playerId: string): readonly TicTacToeEvent[] {
+    if (state.currentTurn !== playerId) {
+      return [];
+    }
+    const events: TicTacToeEvent[] = [];
+    for (let cell = 0; cell < 9; cell++) {
+      if (state.board[cell] === '') {
+        events.push({ type: 'PIECE_PLACED', cell, playerId });
+      }
+    }
+    return events;
   },
 
   checkEnd(_state: TicTacToeState) {
