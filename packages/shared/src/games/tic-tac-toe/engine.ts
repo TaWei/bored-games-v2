@@ -9,6 +9,24 @@ import type {
 const SYMBOLS = ['X', 'O'] as const;
 
 /**
+ * Quick inline win check — used by reduce() for GAME_OVER validation
+ * before checkEnd() is fully implemented (JER-52).
+ */
+function isGameOver(board: readonly string[]): boolean {
+  const lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+    [0, 4, 8], [2, 4, 6],             // diagonals
+  ];
+  for (const [a, b, c] of lines) {
+    if (board[a] !== '' && board[a] === board[b] && board[b] === board[c]) {
+      return true;
+    }
+  }
+  return board.every((cell) => cell !== '');
+}
+
+/**
  * Tic-Tac-Toe game engine following the pure, event-sourced GameEngine interface.
  *
  * Board layout (flat 9-element array):
@@ -54,6 +72,21 @@ export const ticTacToeEngine: GameEngine<
   },
 
   reduce(state: TicTacToeState, event: TicTacToeEvent): Result<TicTacToeState, string> {
+    // 1. Check if game is already over
+    if (isGameOver(state.board)) {
+      return { ok: false, error: 'GAME_OVER' };
+    }
+
+    // 2. Check if it's the player's turn
+    if (state.currentTurn !== event.playerId) {
+      return { ok: false, error: 'NOT_YOUR_TURN' };
+    }
+
+    // 3. Check if cell is occupied
+    if (state.board[event.cell] !== '') {
+      return { ok: false, error: 'CELL_OCCUPIED' };
+    }
+
     // Find the player's symbol
     const player = state.players.find((p) => p.sessionId === event.playerId);
     const symbol = player?.symbol ?? '?';

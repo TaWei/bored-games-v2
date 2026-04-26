@@ -195,3 +195,89 @@ describe('TicTacToe reduce()', () => {
     expect(r2.value.board[1]).toBe('O');
   });
 });
+
+// ─── JER-51: reduce() — error cases ─────────────────────────
+
+describe('TicTacToe reduce() — errors', () => {
+  const fresh = ticTacToeEngine.init({}, ['p1', 'p2']);
+
+  test('CELL_OCCUPIED: placing on occupied cell', () => {
+    // Place X at 0
+    const r1 = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p1',
+    });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) throw new Error('Expected ok');
+
+    // Try to place O at 0 (already occupied)
+    const r2 = ticTacToeEngine.reduce(r1.value, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p2',
+    });
+    expect(r2.ok).toBe(false);
+    if (r2.ok) throw new Error('Expected error');
+    expect(r2.error).toBe('CELL_OCCUPIED');
+  });
+
+  test('CELL_OCCUPIED: placing on cell occupied by opponent', () => {
+    const r1 = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 4, playerId: 'p1',
+    });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) throw new Error('Expected ok');
+
+    // p2 tries to place on cell 4 (occupied by X)
+    const r2 = ticTacToeEngine.reduce(r1.value, {
+      type: 'PIECE_PLACED', cell: 4, playerId: 'p2',
+    });
+    expect(r2.ok).toBe(false);
+    if (r2.ok) throw new Error('Expected error');
+    expect(r2.error).toBe('CELL_OCCUPIED');
+  });
+
+  test('NOT_YOUR_TURN: wrong player makes a move', () => {
+    // It's p1's turn, but p2 tries to move
+    const r = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 2, playerId: 'p2',
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected error');
+    expect(r.error).toBe('NOT_YOUR_TURN');
+  });
+
+  test('NOT_YOUR_TURN: p1 tries on p2 turn', () => {
+    const r1 = ticTacToeEngine.reduce(fresh, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p1',
+    });
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) throw new Error('Expected ok');
+
+    // It's now p2's turn, but p1 tries again
+    const r2 = ticTacToeEngine.reduce(r1.value, {
+      type: 'PIECE_PLACED', cell: 1, playerId: 'p1',
+    });
+    expect(r2.ok).toBe(false);
+    if (r2.ok) throw new Error('Expected error');
+    expect(r2.error).toBe('NOT_YOUR_TURN');
+  });
+
+  test('GAME_OVER: move after game ended', () => {
+    // Set up a finished game: X wins with top row
+    const finishedState: TicTacToeState = {
+      gameType: 'tic-tac-toe',
+      players: [
+        { sessionId: 'p1', displayName: 'Alice', createdAt: 0, symbol: 'X' },
+        { sessionId: 'p2', displayName: 'Bob', createdAt: 0, symbol: 'O' },
+      ],
+      currentTurn: 'p2', // Game ended but turn is stale
+      moveCount: 5,
+      board: ['X', 'X', 'X', 'O', 'O', '', '', '', ''],
+    };
+
+    const r = ticTacToeEngine.reduce(finishedState, {
+      type: 'PIECE_PLACED', cell: 5, playerId: 'p2',
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected error');
+    expect(r.error).toBe('GAME_OVER');
+  });
+});
