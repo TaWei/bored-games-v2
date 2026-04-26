@@ -281,3 +281,100 @@ describe('TicTacToe reduce() — errors', () => {
     expect(r.error).toBe('GAME_OVER');
   });
 });
+
+// ─── JER-52/53/54: checkEnd() ────────────────────────────────
+
+describe('TicTacToe checkEnd()', () => {
+  const players = [
+    { sessionId: 'p1', displayName: 'Alice', createdAt: 0, symbol: 'X' },
+    { sessionId: 'p2', displayName: 'Bob', createdAt: 0, symbol: 'O' },
+  ];
+
+  test('detects row win (top row)', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p2', moveCount: 5,
+      board: ['X', 'X', 'X', 'O', 'O', '', '', '', ''],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBe('p1');
+    expect(result!.reason).toBe('THREE_IN_A_ROW');
+  });
+
+  test('detects row win (middle row)', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p1', moveCount: 5,
+      board: ['', '', '', 'X', 'X', 'X', 'O', 'O', ''],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBe('p1');
+    expect(result!.reason).toBe('THREE_IN_A_ROW');
+  });
+
+  test('detects column win', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p1', moveCount: 6,
+      board: ['O', 'X', '', 'O', 'X', '', 'O', '', ''],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBe('p2');
+    expect(result!.reason).toBe('THREE_IN_A_ROW');
+  });
+
+  test('detects diagonal win (top-left to bottom-right)', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p2', moveCount: 7,
+      board: ['X', 'O', '', '', 'X', 'O', '', '', 'X'],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBe('p1');
+    expect(result!.reason).toBe('THREE_IN_A_ROW');
+  });
+
+  test('detects diagonal win (top-right to bottom-left)', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p1', moveCount: 5,
+      board: ['', '', 'O', '', 'O', '', 'O', '', ''],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBe('p2');
+  });
+
+  test('detects draw (full board, no winner)', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p1', moveCount: 9,
+      board: ['X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).not.toBeNull();
+    expect(result!.winner).toBeNull();
+    expect(result!.reason).toBe('BOARD_FULL');
+  });
+
+  test('returns null for ongoing game', () => {
+    const state: TicTacToeState = {
+      gameType: 'tic-tac-toe', players,
+      currentTurn: 'p1', moveCount: 3,
+      board: ['X', 'O', '', '', 'X', '', '', '', ''],
+    };
+    const result = ticTacToeEngine.checkEnd(state);
+    expect(result).toBeNull();
+  });
+
+  test('returns null for empty board', () => {
+    const engine = ticTacToeEngine;
+    const state = engine.init({}, ['p1', 'p2']);
+    const result = engine.checkEnd(state);
+    expect(result).toBeNull();
+  });
+});

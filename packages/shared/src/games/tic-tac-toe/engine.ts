@@ -9,24 +9,6 @@ import type {
 const SYMBOLS = ['X', 'O'] as const;
 
 /**
- * Quick inline win check — used by reduce() for GAME_OVER validation
- * before checkEnd() is fully implemented (JER-52).
- */
-function isGameOver(board: readonly string[]): boolean {
-  const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
-    [0, 4, 8], [2, 4, 6],             // diagonals
-  ];
-  for (const [a, b, c] of lines) {
-    if (board[a] !== '' && board[a] === board[b] && board[b] === board[c]) {
-      return true;
-    }
-  }
-  return board.every((cell) => cell !== '');
-}
-
-/**
  * Tic-Tac-Toe game engine following the pure, event-sourced GameEngine interface.
  *
  * Board layout (flat 9-element array):
@@ -73,7 +55,7 @@ export const ticTacToeEngine: GameEngine<
 
   reduce(state: TicTacToeState, event: TicTacToeEvent): Result<TicTacToeState, string> {
     // 1. Check if game is already over
-    if (isGameOver(state.board)) {
+    if (ticTacToeEngine.checkEnd(state) !== null) {
       return { ok: false, error: 'GAME_OVER' };
     }
 
@@ -123,8 +105,30 @@ export const ticTacToeEngine: GameEngine<
     return events;
   },
 
-  checkEnd(_state: TicTacToeState) {
-    // Stub — implemented in JER-52
+  checkEnd(state: TicTacToeState) {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+      [0, 4, 8], [2, 4, 6],             // diagonals
+    ];
+
+    for (const [a, b, c] of lines) {
+      if (state.board[a] !== '' && state.board[a] === state.board[b] && state.board[b] === state.board[c]) {
+        // Find the player with this symbol
+        const winningSymbol = state.board[a];
+        const winner = state.players.find((p) => p.symbol === winningSymbol);
+        return {
+          winner: winner?.sessionId ?? null,
+          reason: 'THREE_IN_A_ROW',
+        };
+      }
+    }
+
+    // Check for draw (full board)
+    if (state.board.every((cell) => cell !== '')) {
+      return { winner: null, reason: 'BOARD_FULL' };
+    }
+
     return null;
   },
 
