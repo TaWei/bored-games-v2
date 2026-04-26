@@ -1,0 +1,27 @@
+{
+  "name": "@bored-games/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun --watch run src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "db:migrate": "bunx drizzle-kit push",
+    "db:studio": "bunx drizzle-kit studio",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "@bored-games/shared": "workspace:*",
+    "ioredis": "^5.5.0",
+    "drizzle-orm": "^0.41.0",
+    "pg": "^8.14.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.30.0"
+  }
+}
