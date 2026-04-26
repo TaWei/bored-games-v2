@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { ticTacToeEngine } from './engine';
+import type { TicTacToeState } from './types';
 
 describe('TicTacToe init()', () => {
   test('init creates empty board state with correct defaults', () => {
@@ -37,12 +38,10 @@ describe('TicTacToe legalEvents()', () => {
     expect(events).toHaveLength(9);
 
     const cells = new Set(events.map((e) => e.cell));
-    // Should cover all cells 0-8
     for (let i = 0; i < 9; i++) {
       expect(cells.has(i)).toBe(true);
     }
 
-    // All events should have correct shape
     for (const event of events) {
       expect(event.type).toBe('PIECE_PLACED');
       expect(event.playerId).toBe('p1');
@@ -54,5 +53,63 @@ describe('TicTacToe legalEvents()', () => {
   test('non-current player gets 0 legal events on empty board', () => {
     const events = ticTacToeEngine.legalEvents(freshState, 'p2');
     expect(events).toHaveLength(0);
+  });
+});
+
+// ─── JER-49: legalEvents() — occupied + wrong turn ───────────
+
+describe('TicTacToe legalEvents() — mid-game', () => {
+  // Manual state: p1 placed at cell 4, now p2's turn
+  const afterOneMove: TicTacToeState = {
+    gameType: 'tic-tac-toe',
+    players: [
+      { sessionId: 'p1', displayName: 'Alice', createdAt: 0, symbol: 'X' },
+      { sessionId: 'p2', displayName: 'Bob', createdAt: 0, symbol: 'O' },
+    ],
+    currentTurn: 'p2',
+    moveCount: 1,
+    board: ['', '', '', '', 'X', '', '', '', ''],
+  };
+
+  test('occupied cell is excluded from legal events', () => {
+    const events = ticTacToeEngine.legalEvents(afterOneMove, 'p2');
+    expect(events).toHaveLength(8);
+
+    const cells = new Set(events.map((e) => e.cell));
+    expect(cells.has(4)).toBe(false); // Cell 4 is occupied by X
+    for (let i = 0; i < 9; i++) {
+      if (i !== 4) {
+        expect(cells.has(i)).toBe(true);
+      }
+    }
+  });
+
+  test('wrong turn player gets 0 legal events', () => {
+    // p1 already moved, it's p2's turn now
+    const events = ticTacToeEngine.legalEvents(afterOneMove, 'p1');
+    expect(events).toHaveLength(0);
+  });
+
+  // State with multiple occupied cells
+  const midGame: TicTacToeState = {
+    gameType: 'tic-tac-toe',
+    players: [
+      { sessionId: 'p1', displayName: 'Alice', createdAt: 0, symbol: 'X' },
+      { sessionId: 'p2', displayName: 'Bob', createdAt: 0, symbol: 'O' },
+    ],
+    currentTurn: 'p1',
+    moveCount: 4,
+    board: ['X', 'O', '', '', 'X', '', '', '', 'O'],
+  };
+
+  test('multiple occupied cells excluded correctly', () => {
+    const events = ticTacToeEngine.legalEvents(midGame, 'p1');
+      expect(events).toHaveLength(5);
+
+    const cells = new Set(events.map((e) => e.cell));
+    expect(cells.has(0)).toBe(false); // X
+    expect(cells.has(1)).toBe(false); // O
+    expect(cells.has(4)).toBe(false); // X
+    expect(cells.has(8)).toBe(false); // O
   });
 });
