@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { registerGame, getEngine, listGames } from './registry';
 import type { GameEngine } from './types';
+import { ticTacToeEngine } from './tic-tac-toe/engine';
 
 // Minimal engine for testing
 type TestState = { readonly value: number };
@@ -55,5 +56,27 @@ describe('GameRegistry', () => {
     registerGame(updatedEngine);
     const engine = getEngine('tic-tac-toe');
     expect(engine.meta.name).toBe('Updated Mock');
+  });
+});
+
+// ─── JER-57: Real tic-tac-toe engine registered ─────────────
+
+describe('TicTacToe engine in registry', () => {
+  test('real tic-tac-toe engine can be registered and retrieved', () => {
+    registerGame(ticTacToeEngine);
+    const engine = getEngine('tic-tac-toe');
+
+    expect(engine.gameType).toBe('tic-tac-toe');
+    expect(engine.meta.name).toBe('Tic-Tac-Toe');
+    expect(engine.playerCount.min).toBe(2);
+    expect(engine.playerCount.max).toBe(2);
+
+    // Verify real functionality (not mock)
+    const state = engine.init({}, ['p1', 'p2']);
+    expect(state.board).toHaveLength(9);
+    expect(state.currentTurn).toBe('p1');
+
+    const games = listGames();
+    expect(games.some((g) => g.gameType === 'tic-tac-toe')).toBe(true);
   });
 });

@@ -282,6 +282,74 @@ describe('TicTacToe reduce() — errors', () => {
   });
 });
 
+// ─── JER-55: view() ─────────────────────────────────────────
+
+describe('TicTacToe view()', () => {
+  const state = ticTacToeEngine.init({}, ['p1', 'p2']);
+
+  test('view returns full state for both players (perfect info)', () => {
+    const view1 = ticTacToeEngine.view(state, 'p1');
+    const view2 = ticTacToeEngine.view(state, 'p2');
+
+    expect(view1.board).toEqual(state.board);
+    expect(view2.board).toEqual(state.board);
+    expect(view1.currentTurn).toBe(state.currentTurn);
+    expect(view2.currentTurn).toBe(state.currentTurn);
+    expect(view1.players).toEqual(state.players);
+    expect(view2.players).toEqual(state.players);
+  });
+
+  test('view after a move reflects updated board', () => {
+    const r = ticTacToeEngine.reduce(state, {
+      type: 'PIECE_PLACED', cell: 0, playerId: 'p1',
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected ok');
+
+    const view = ticTacToeEngine.view(r.value, 'p2');
+    expect(view.board[0]).toBe('X');
+    expect(view.currentTurn).toBe('p2');
+  });
+});
+
+// ─── JER-56: replay correctness ─────────────────────────────
+
+describe('TicTacToe replay correctness', () => {
+  test('applying events from scratch equals incremental play', () => {
+    // Play a game incrementally
+    let state = ticTacToeEngine.init({}, ['p1', 'p2']);
+
+    const events: TicTacToeEvent[] = [
+      { type: 'PIECE_PLACED', cell: 0, playerId: 'p1' },
+      { type: 'PIECE_PLACED', cell: 4, playerId: 'p2' },
+      { type: 'PIECE_PLACED', cell: 1, playerId: 'p1' },
+      { type: 'PIECE_PLACED', cell: 5, playerId: 'p2' },
+      { type: 'PIECE_PLACED', cell: 2, playerId: 'p1' },
+    ];
+
+    for (const event of events) {
+      const r = ticTacToeEngine.reduce(state, event);
+      expect(r.ok).toBe(true);
+      if (!r.ok) throw new Error('Expected ok');
+      state = r.value;
+    }
+
+    // Now replay from scratch
+    let replayed = ticTacToeEngine.init({}, ['p1', 'p2']);
+    for (const event of events) {
+      const r = ticTacToeEngine.reduce(replayed, event);
+      expect(r.ok).toBe(true);
+      if (!r.ok) throw new Error('Expected ok');
+      replayed = r.value;
+    }
+
+    // Both should be identical (modulo createdAt timestamps)
+    expect(replayed.board).toEqual(state.board);
+    expect(replayed.moveCount).toBe(state.moveCount);
+    expect(replayed.currentTurn).toBe(state.currentTurn);
+  });
+});
+
 // ─── JER-52/53/54: checkEnd() ────────────────────────────────
 
 describe('TicTacToe checkEnd()', () => {
