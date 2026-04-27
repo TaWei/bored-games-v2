@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { routes } from './routes/index';
 
 const app = new Hono();
 const startTime = Date.now();
@@ -15,5 +16,7 @@ app.get('/health', (c) => {
     uptime: (Date.now() - startTime) / 1000,
   });
 });
+
+app.route('/api', routes);
 
 export { app };
