@@ -130,3 +130,60 @@ test('POST /api/rooms with missing displayName returns 400', async () => {
   const body = await res.json();
   expect(body.error).toBeString();
 });
+
+// ────────────────────────────────────────────────────────────
+// JER-69: GET /api/rooms/:code
+// ────────────────────────────────────────────────────────────
+
+test('GET /api/rooms/:code returns 200 with room for valid code', async () => {
+  // Create a room first
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-69-a',
+      displayName: 'Alice',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  const res = await app.request(`/api/rooms/${roomCode}`);
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.room).toBeObject();
+  expect(body.room.code).toBe(roomCode);
+  expect(body.room.gameType).toBe('tic-tac-toe');
+});
+
+test('GET /api/rooms/:code with nonexistent code returns 404', async () => {
+  const res = await app.request('/api/rooms/ZZZZZZ');
+  expect(res.status).toBe(404);
+  const body = await res.json();
+  expect(body.error).toBeString();
+});
+
+test('GET /api/rooms/:code returned room has correct fields', async () => {
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-69-c',
+      displayName: 'Charlie',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  const res = await app.request(`/api/rooms/${roomCode}`);
+  const body = await res.json();
+  const { room } = body;
+  expect(room.status).toBe('waiting');
+  expect(room.players).toBeArray();
+  expect(room.players.length).toBe(1);
+  expect(room.maxPlayers).toBe(2);
+  expect(room.hostSessionId).toBe('host-69-c');
+  expect(room.createdAt).toBeNumber();
+});

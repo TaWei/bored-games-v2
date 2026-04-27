@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { isGameType } from '@bored-games/shared';
-import { createRoom } from '../services/room-manager';
+import { createRoom, getRoom } from '../services/room-manager';
 
 const roomsRouter = new Hono();
 
@@ -32,6 +32,19 @@ roomsRouter.post('/', async (c) => {
 
     const room = await createRoom(gameType, hostSessionId, displayName);
     return c.json({ roomCode: room.code, room }, 201);
+  } catch {
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+roomsRouter.get('/:code', async (c) => {
+  try {
+    const code = c.req.param('code');
+    const room = await getRoom(code);
+    if (!room) {
+      return c.json({ error: 'Room not found' }, 404);
+    }
+    return c.json({ room }, 200);
   } catch {
     return c.json({ error: 'Internal server error' }, 500);
   }
