@@ -223,3 +223,29 @@ test('leaveRoom persists changes to Redis', async () => {
   expect(fetched!.players.length).toBe(1);
   await redis.del(`room:${room.code}`);
 });
+
+// ────────────────────────────────────────────────────────────
+// JER-71: Room TTL expiration test
+// ────────────────────────────────────────────────────────────
+
+test('room auto-expires after TTL and getRoom returns null', async () => {
+  // Create a room (TTL defaults to 30 mins via config)
+  const room = await createRoom('tic-tac-toe', 'host-ttl-expire', 'TTL Tester');
+
+  // Verify the key exists and has a TTL
+  const initialTtl = await redis.ttl(`room:${room.code}`);
+  expect(initialTtl).toBeGreaterThan(0);
+
+  // Manually expire the key after 1 second
+  await redis.expire(`room:${room.code}`, 1);
+
+  // Wait for expiry (1.5s to avoid race conditions)
+  await new Promise(r => setTimeout(r, 1500));
+
+  // After expiry, getRoom should return null
+  const expired = await getRoom(room.code);
+  expect(expired).toBeNull();
+
+  // Cleanup (key already expired, but just in case)
+  await redis.del(`room:${room.code}`);
+}, 5000); // 5s timeout for this test
