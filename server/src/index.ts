@@ -4,6 +4,9 @@ import { logger } from 'hono/logger';
 import { routes } from './routes/index';
 import { config } from './lib/config';
 
+// Side-effect import: registers all game engines in the registry
+import '@bored-games/shared/src/games';
+
 const app = new Hono();
 const startTime = Date.now();
 

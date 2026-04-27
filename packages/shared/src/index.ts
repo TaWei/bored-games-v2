@@ -32,3 +32,7 @@ export {
 export { generateRoomCode, isValidRoomCode } from './utils/room-code';
 export { generateSessionId, isValidSessionId } from './utils/session';
 export { generateDisplayName, isValidDisplayName } from './utils/display-name';
+
+// ─── Game Engine Registry ─────────────────────────────────
+export { registerGame, getEngine, listGames } from './games/registry';
+export { type Result, type GameEngine } from './games/types';
