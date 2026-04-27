@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { routes } from './routes/index';
 import { config } from './lib/config';
-import { validateWsParams } from './ws/handler';
+import { validateWsParams, handleWSOpen, handleWSMessage, handleWSClose } from './ws/handler';
 
 // Side-effect import: registers all game engines in the registry
 import '@bored-games/shared/src/games';
@@ -61,8 +61,8 @@ export default {
     return app.fetch(req);
   },
   websocket: {
-    open(ws) { console.log('[ws] connection opened'); },
-    message(ws, msg) { console.log('[ws] message:', msg); },
-    close(ws) { console.log('[ws] connection closed'); },
+    open(ws) { handleWSOpen(ws as any); },
+    message(ws, msg) { handleWSMessage(ws as any, msg as string); },
+    close(ws) { handleWSClose(ws as any); },
   },
 };
