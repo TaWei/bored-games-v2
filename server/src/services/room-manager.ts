@@ -55,3 +55,13 @@ export async function getRoom(code: string): Promise<Room | null> {
   if (!data) return null;
   return JSON.parse(data) as Room;
 }
+
+/**
+ * Persist a room to Redis, refreshing its TTL.
+ * The room's code is used as the key.
+ */
+export async function updateRoom(room: Room): Promise<void> {
+  const key = `room:${room.code}`;
+  const ttlSeconds = config.ROOM_TTL_MINUTES * 60;
+  await redis.set(key, JSON.stringify(room), 'EX', ttlSeconds);
+}
