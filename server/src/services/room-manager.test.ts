@@ -2,9 +2,9 @@ import { test, expect, afterAll } from 'bun:test';
 import { redis } from '../lib/redis';
 import { createRoom, getRoom, updateRoom } from './room-manager';
 
-// Clean up Redis after all tests
+// Clean up any leaked Redis keys after all tests
 afterAll(async () => {
-  await redis.quit();
+  // Note: redis.quit() is called by redis.test.ts — don't double-close the shared connection
 });
 
 // JER-63: createRoom tests

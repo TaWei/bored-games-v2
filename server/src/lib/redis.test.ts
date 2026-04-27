@@ -1,11 +1,9 @@
-import { describe, test, expect, afterAll } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { redis, redisSub, CHANNELS } from "./redis";
 
 describe("Redis client", () => {
-  afterAll(async () => {
-    await redis.quit();
-    await redisSub.quit();
-  });
+  // Note: redis.quit() / redisSub.quit() are NOT called here because
+  // these are shared singleton connections used by other test files (e.g. room-manager).
 
   test("redis.ping() returns PONG", async () => {
     const result = await redis.ping();
