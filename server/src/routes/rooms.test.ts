@@ -187,3 +187,156 @@ test('GET /api/rooms/:code returned room has correct fields', async () => {
   expect(room.hostSessionId).toBe('host-69-c');
   expect(room.createdAt).toBeNumber();
 });
+
+// ────────────────────────────────────────────────────────────
+// JER-70: POST /api/rooms/:code/join
+// ────────────────────────────────────────────────────────────
+
+test('POST /api/rooms/:code/join returns 200 with room and symbol', async () => {
+  // Create a room
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-70-a',
+      displayName: 'Alice',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  const res = await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-join',
+      displayName: 'Bob',
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.room).toBeObject();
+  expect(body.room.code).toBe(roomCode);
+  expect(body.room.players.length).toBe(2);
+  expect(body.symbol).toBeString();
+});
+
+test('POST /api/rooms/:code/join joining same room again returns 200 (idempotent)', async () => {
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-70-b',
+      displayName: 'Alice',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  // First join
+  await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-join',
+      displayName: 'Bob',
+    }),
+  });
+
+  // Second join with same sessionId
+  const res = await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-join',
+      displayName: 'Bob',
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.room.players.length).toBe(2); // Still 2, not 3
+});
+
+test('POST /api/rooms/:code/join full room returns 409', async () => {
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-70-c',
+      displayName: 'Alice',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  // Fill the room (max 2 for tic-tac-toe)
+  await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-c',
+      displayName: 'Bob',
+    }),
+  });
+
+  // Third player tries to join full room
+  const res = await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-d',
+      displayName: 'Charlie',
+    }),
+  });
+
+  expect(res.status).toBe(409);
+  const body = await res.json();
+  expect(body.error).toBeString();
+});
+
+test('POST /api/rooms/:code/join nonexistent room returns 404', async () => {
+  const res = await app.request('/api/rooms/ZZZZZZ/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'player-70-e',
+      displayName: 'Eve',
+    }),
+  });
+
+  expect(res.status).toBe(404);
+  const body = await res.json();
+  expect(body.error).toBeString();
+});
+
+test('POST /api/rooms/:code/join missing body fields returns 400', async () => {
+  const createRes = await app.request('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameType: 'tic-tac-toe',
+      hostSessionId: 'host-70-f',
+      displayName: 'Frank',
+    }),
+  });
+  const { roomCode } = await createRes.json();
+  cleanupCodes.push(roomCode);
+
+  const res = await app.request(`/api/rooms/${roomCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      // Missing sessionId
+      displayName: 'Greg',
+    }),
+  });
+
+  expect(res.status).toBe(400);
+  const body = await res.json();
+  expect(body.error).toBeString();
+});
