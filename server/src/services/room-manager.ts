@@ -107,3 +107,46 @@ export async function joinRoom(
   await updateRoom(updated);
   return updated;
 }
+
+/**
+ * Remove a player or spectator from a room.
+ * If the leaving player was the host, the next player becomes host.
+ * If no players remain, the room status is set to 'abandoned'.
+ * Throws if the room is not found or the session is not in the room.
+ */
+export async function leaveRoom(code: string, sessionId: string): Promise<Room> {
+  const room = await getRoom(code);
+  if (!room) throw new Error('Room not found');
+
+  // Check if session is in players or spectators
+  const isPlayer = room.players.some(p => p.sessionId === sessionId);
+  const isSpectator = room.spectators.some(s => s.sessionId === sessionId);
+
+  if (!isPlayer && !isSpectator) {
+    throw new Error('Not in room');
+  }
+
+  // Remove from players and spectators
+  const remainingPlayers = room.players.filter(p => p.sessionId !== sessionId);
+  const remainingSpectators = room.spectators.filter(s => s.sessionId !== sessionId);
+
+  // Determine new host if the leaving player was the host
+  let newHostSessionId = room.hostSessionId;
+  if (sessionId === room.hostSessionId && remainingPlayers.length > 0) {
+    newHostSessionId = remainingPlayers[0].sessionId;
+  }
+
+  // If no players remain, mark as abandoned
+  const newStatus = remainingPlayers.length === 0 ? 'abandoned' as const : room.status;
+
+  const updated: Room = {
+    ...room,
+    hostSessionId: newHostSessionId,
+    status: newStatus,
+    players: remainingPlayers,
+    spectators: remainingSpectators,
+  };
+
+  await updateRoom(updated);
+  return updated;
+}

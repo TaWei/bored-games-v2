@@ -158,3 +158,68 @@ test('joinRoom persists the updated room in Redis', async () => {
   expect(fetched!.players.length).toBe(2);
   await redis.del(`room:${room.code}`);
 });
+
+// ────────────────────────────────────────────────────────────
+// JER-67: leaveRoom tests
+// ────────────────────────────────────────────────────────────
+
+test('leaveRoom removes the player from players array', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-1', 'Alice');
+  await joinRoom(room.code, 'player-2', 'Bob');
+  const result = await leaveRoom(room.code, 'player-2');
+  expect(result.players.length).toBe(1);
+  expect(result.players[0].sessionId).toBe('host-leave-1');
+  await redis.del(`room:${room.code}`);
+});
+
+test('leaveRoom if host leaves, next player becomes host', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-2', 'Alice');
+  await joinRoom(room.code, 'player-2', 'Bob');
+  const result = await leaveRoom(room.code, 'host-leave-2');
+  expect(result.players.length).toBe(1);
+  expect(result.players[0].sessionId).toBe('player-2');
+  expect(result.hostSessionId).toBe('player-2');
+  await redis.del(`room:${room.code}`);
+});
+
+test('leaveRoom if last player leaves, room status is abandoned', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-3', 'Alice');
+  const result = await leaveRoom(room.code, 'host-leave-3');
+  expect(result.players.length).toBe(0);
+  expect(result.status).toBe('abandoned');
+  await redis.del(`room:${room.code}`);
+});
+
+test('leaveRoom a spectator can leave', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-4', 'Alice');
+  // Add a spectator by directly updating the room
+  const withSpectator: Room = {
+    ...room,
+    spectators: [...room.spectators, { sessionId: 'spec-1', displayName: 'Watcher', createdAt: Date.now() }],
+  };
+  await updateRoom(withSpectator);
+  const result = await leaveRoom(room.code, 'spec-1');
+  expect(result.spectators.length).toBe(0);
+  expect(result.players.length).toBe(1); // host still there
+  await redis.del(`room:${room.code}`);
+});
+
+test('leaveRoom leaving non-existent room throws an error', async () => {
+  await expect(leaveRoom('ZZZZZZ', 'player-x')).rejects.toThrow('Room not found');
+});
+
+test('leaveRoom leaving a room you are not in throws an error', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-5', 'Alice');
+  await expect(leaveRoom(room.code, 'stranger')).rejects.toThrow('Not in room');
+  await redis.del(`room:${room.code}`);
+});
+
+test('leaveRoom persists changes to Redis', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-leave-6', 'Alice');
+  await joinRoom(room.code, 'player-2', 'Bob');
+  await leaveRoom(room.code, 'player-2');
+  const fetched = await getRoom(room.code);
+  expect(fetched).not.toBeNull();
+  expect(fetched!.players.length).toBe(1);
+  await redis.del(`room:${room.code}`);
+});
