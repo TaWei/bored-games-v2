@@ -1,6 +1,6 @@
 import { test, expect, afterAll } from 'bun:test';
 import { redis } from '../lib/redis';
-import { createRoom } from './room-manager';
+import { createRoom, getRoom } from './room-manager';
 
 // Clean up Redis after all tests
 afterAll(async () => {
@@ -52,4 +52,24 @@ test('createRoom room has TTL set on Redis key', async () => {
   expect(ttl).toBeGreaterThan(0);
   expect(ttl).toBeLessThanOrEqual(1800);
   await redis.del(`room:${room.code}`);
+});
+
+// JER-64: getRoom tests
+test('getRoom returns the room for a valid code', async () => {
+  const created = await createRoom('tic-tac-toe', 'host-get', 'Grace');
+  const room = await getRoom(created.code);
+  expect(room).not.toBeNull();
+  expect(room!.code).toBe(created.code);
+  expect(room!.gameType).toBe('tic-tac-toe');
+  await redis.del(`room:${created.code}`);
+});
+
+test('getRoom returns null for unknown code', async () => {
+  const room = await getRoom('ZZZZZZ');
+  expect(room).toBeNull();
+});
+
+test('getRoom returns null for non-existent code', async () => {
+  const room = await getRoom('000000');
+  expect(room).toBeNull();
 });

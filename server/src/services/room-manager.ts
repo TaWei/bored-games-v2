@@ -44,3 +44,14 @@ export async function createRoom(
 
   return room;
 }
+
+/**
+ * Retrieve a room from Redis by its code.
+ * Returns null if the room doesn't exist or has expired.
+ */
+export async function getRoom(code: string): Promise<Room | null> {
+  const key = `room:${code}`;
+  const data = await redis.get(key);
+  if (!data) return null;
+  return JSON.parse(data) as Room;
+}
