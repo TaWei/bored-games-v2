@@ -1,6 +1,6 @@
 import { test, expect, afterAll } from 'bun:test';
 import { redis } from '../lib/redis';
-import { createRoom, getRoom, updateRoom } from './room-manager';
+import { createRoom, getRoom, updateRoom, joinRoom, leaveRoom } from './room-manager';
 
 // Clean up any leaked Redis keys after all tests
 afterAll(async () => {
@@ -113,5 +113,48 @@ test('updateRoom preserves the room code', async () => {
   const fetched = await getRoom(room.code);
   expect(fetched).not.toBeNull();
   expect(fetched!.code).toBe(room.code);
+  await redis.del(`room:${room.code}`);
+});
+
+// ────────────────────────────────────────────────────────────
+// JER-66: joinRoom tests
+// ────────────────────────────────────────────────────────────
+
+test('joinRoom adds a second player with symbol O', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-join-1', 'Alice');
+  const updated = await joinRoom(room.code, 'player-2', 'Bob');
+  expect(updated.players.length).toBe(2);
+  expect(updated.players[1].sessionId).toBe('player-2');
+  expect(updated.players[1].displayName).toBe('Bob');
+  expect(updated.players[1].symbol).toBe('O');
+  await redis.del(`room:${room.code}`);
+});
+
+test('joinRoom joining with same sessionId returns current room (idempotent)', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-join-2', 'Alice');
+  // Join with the host's sessionId
+  const result = await joinRoom(room.code, 'host-join-2', 'Alice');
+  expect(result.players.length).toBe(1); // Still only 1 player
+  expect(result.code).toBe(room.code);
+  await redis.del(`room:${room.code}`);
+});
+
+test('joinRoom joining a full room throws an error', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-join-3', 'Alice');
+  await joinRoom(room.code, 'player-2', 'Bob'); // fills to 2 players (max)
+  await expect(joinRoom(room.code, 'player-3', 'Charlie')).rejects.toThrow('Room is full');
+  await redis.del(`room:${room.code}`);
+});
+
+test('joinRoom joining non-existent room throws an error', async () => {
+  await expect(joinRoom('ZZZZZZ', 'player-x', 'Dave')).rejects.toThrow('Room not found');
+});
+
+test('joinRoom persists the updated room in Redis', async () => {
+  const room = await createRoom('tic-tac-toe', 'host-join-4', 'Alice');
+  await joinRoom(room.code, 'player-2', 'Bob');
+  const fetched = await getRoom(room.code);
+  expect(fetched).not.toBeNull();
+  expect(fetched!.players.length).toBe(2);
   await redis.del(`room:${room.code}`);
 });

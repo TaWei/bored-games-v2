@@ -65,3 +65,45 @@ export async function updateRoom(room: Room): Promise<void> {
   const ttlSeconds = config.ROOM_TTL_MINUTES * 60;
   await redis.set(key, JSON.stringify(room), 'EX', ttlSeconds);
 }
+
+/**
+ * Add a player to an existing room.
+ * Returns the current room if the player is already in it (idempotent).
+ * Throws if the room is not found or is already full.
+ */
+export async function joinRoom(
+  code: string,
+  sessionId: string,
+  displayName: string
+): Promise<Room> {
+  const room = await getRoom(code);
+  if (!room) throw new Error('Room not found');
+
+  // Already in room? Return current state (idempotent)
+  const alreadyInPlayers = room.players.some(p => p.sessionId === sessionId);
+  const alreadyInSpectators = room.spectators.some(s => s.sessionId === sessionId);
+  if (alreadyInPlayers || alreadyInSpectators) return room;
+
+  // Room full?
+  if (room.players.length >= room.maxPlayers) {
+    throw new Error('Room is full');
+  }
+
+  // Assign symbol based on position
+  const symbol = room.players.length === 0 ? 'X' : 'O';
+
+  const newPlayer = {
+    sessionId,
+    displayName,
+    createdAt: Date.now(),
+    symbol,
+  };
+
+  const updated: Room = {
+    ...room,
+    players: [...room.players, newPlayer],
+  };
+
+  await updateRoom(updated);
+  return updated;
+}
